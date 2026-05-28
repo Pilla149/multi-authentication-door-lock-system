@@ -1,1 +1,135 @@
+```cpp
+/*
+===========================================
+ FINGERPRINT-BASED SOLENOID DOOR LOCK
+ Using ESP8266 NodeMCU + R307/R305 Sensor
+===========================================
+*/
+
+#include <Adafruit_Fingerprint.h>
+#include <SoftwareSerial.h>
+
+// -------- PIN DEFINITIONS --------
+#define RELAY_PIN D1          // Relay Control Pin
+#define BUZZER_PIN D2         // Optional Buzzer
+
+#define UNLOCK_TIME 3000      // Door unlock time (ms)
+
+// -------- FINGERPRINT SERIAL --------
+// Fingerprint TX -> NodeMCU D6
+// Fingerprint RX -> NodeMCU D7
+
+SoftwareSerial fingerSerial(D6, D7);
+
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fingerSerial);
+
+// -------- SETUP --------
+void setup() {
+
+  Serial.begin(9600);
+
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  digitalWrite(RELAY_PIN, HIGH);   // LOCKED
+  digitalWrite(BUZZER_PIN, LOW);
+
+  Serial.println("=================================");
+  Serial.println(" Fingerprint Door Lock System");
+  Serial.println("=================================");
+
+  finger.begin(57600);
+
+  if (finger.verifyPassword()) {
+    Serial.println("Fingerprint Sensor Connected");
+  }
+  else {
+    Serial.println("Fingerprint Sensor NOT Found");
+    while (1);
+  }
+
+  Serial.println("Waiting for Fingerprint...");
+}
+
+// -------- MAIN LOOP --------
+void loop() {
+
+  int result = getFingerprintID();
+
+  if (result > 0) {
+    unlockDoor();
+  }
+
+  delay(50);
+}
+
+// -------- FINGERPRINT MATCH FUNCTION --------
+int getFingerprintID() {
+
+  uint8_t p = finger.getImage();
+
+  if (p != FINGERPRINT_OK) {
+    return -1;
+  }
+
+  p = finger.image2Tz();
+
+  if (p != FINGERPRINT_OK) {
+    return -1;
+  }
+
+  p = finger.fingerFastSearch();
+
+  if (p != FINGERPRINT_OK) {
+
+    Serial.println("Access Denied");
+
+    deniedBeep();
+
+    return -1;
+  }
+
+  Serial.print("Fingerprint Matched ID: ");
+  Serial.println(finger.fingerID);
+
+  return finger.fingerID;
+}
+
+// -------- UNLOCK DOOR --------
+void unlockDoor() {
+
+  Serial.println("Access Granted");
+  Serial.println("Door Unlocked");
+
+  successBeep();
+
+  digitalWrite(RELAY_PIN, LOW);    // Relay ON
+  delay(UNLOCK_TIME);
+
+  digitalWrite(RELAY_PIN, HIGH);   // Relay OFF
+
+  Serial.println("Door Locked");
+}
+
+// -------- SUCCESS BEEP --------
+void successBeep() {
+
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(200);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+// -------- ACCESS DENIED BEEP --------
+void deniedBeep() {
+
+  for (int i = 0; i < 3; i++) {
+
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(150);
+
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(150);
+  }
+}
+```
 
