@@ -1,1 +1,80 @@
+```cpp
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SS_PIN D8
+#define RST_PIN D0
+
+#define RELAY_PIN D1
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+String authorizedUID = "12345678";
+
+void setup() {
+    Serial.begin(9600);
+
+    SPI.begin();
+    rfid.PCD_Init();
+
+    pinMode(RELAY_PIN, OUTPUT);
+    digitalWrite(RELAY_PIN, HIGH);
+
+    Serial.println("Smart Door Lock System Initialized");
+    Serial.println("Waiting for Authentication...");
+}
+
+void unlockDoor() {
+    Serial.println("Access Granted");
+    Serial.println("Door Unlocked");
+
+    digitalWrite(RELAY_PIN, LOW);
+
+    delay(5000);
+
+    digitalWrite(RELAY_PIN, HIGH);
+
+    Serial.println("Door Locked");
+}
+
+void loop() {
+
+    // RFID Authentication
+    if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+
+        String tagID = "";
+
+        for (byte i = 0; i < rfid.uid.size; i++) {
+            tagID += String(rfid.uid.uidByte[i], HEX);
+        }
+
+        Serial.print("RFID UID: ");
+        Serial.println(tagID);
+
+        if (tagID == authorizedUID) {
+            unlockDoor();
+        }
+        else {
+            Serial.println("Access Denied");
+        }
+
+        rfid.PICC_HaltA();
+    }
+
+    // Serial Monitor Command
+    if (Serial.available()) {
+
+        String command = Serial.readStringUntil('\n');
+
+        command.trim();
+
+        if (command == "OPEN") {
+            unlockDoor();
+        }
+        else {
+            Serial.println("Invalid Command");
+        }
+    }
+}
+```
 
