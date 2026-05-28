@@ -1,1 +1,154 @@
+```cpp id="e0bdwd"
+/*
+=================================================
+ RFID-BASED SOLENOID DOOR LOCK SYSTEM
+ Using ESP8266 NodeMCU + RC522 RFID Module
+=================================================
+*/
+
+#include <SPI.h>
+#include <MFRC522.h>
+
+// -------- PIN DEFINITIONS --------
+#define SS_PIN D8
+#define RST_PIN D0
+
+#define RELAY_PIN D1
+#define BUZZER_PIN D2
+
+#define UNLOCK_TIME 3000
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+// -------- AUTHORIZED RFID CARDS --------
+byte authorizedUIDs[][4] = {
+  {0x63, 0xC1, 0xFC, 0x30},   // Card 1
+  {0x94, 0x65, 0x2C, 0xD0}    // Card 2
+};
+
+const byte TOTAL_CARDS = sizeof(authorizedUIDs) / sizeof(authorizedUIDs[0]);
+
+// -------- SETUP --------
+void setup() {
+
+  Serial.begin(9600);
+
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  digitalWrite(RELAY_PIN, HIGH);   // LOCKED
+  digitalWrite(BUZZER_PIN, LOW);
+
+  delay(1000);
+
+  SPI.begin();
+  rfid.PCD_Init();
+
+  Serial.println("=================================");
+  Serial.println(" RFID Door Lock System");
+  Serial.println("=================================");
+
+  Serial.println("Scan Authorized RFID Card...");
+}
+
+// -------- MAIN LOOP --------
+void loop() {
+
+  if (!rfid.PICC_IsNewCardPresent()) return;
+
+  if (!rfid.PICC_ReadCardSerial()) return;
+
+  if (isAuthorized()) {
+
+    unlockDoor();
+  }
+  else {
+
+    accessDenied();
+  }
+
+  // -------- RFID RESET --------
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+  rfid.PCD_Init();
+
+  delay(300);
+}
+
+// -------- RFID AUTHENTICATION --------
+bool isAuthorized() {
+
+  for (byte card = 0; card < TOTAL_CARDS; card++) {
+
+    bool match = true;
+
+    for (byte i = 0; i < 4; i++) {
+
+      if (rfid.uid.uidByte[i] != authorizedUIDs[card][i]) {
+
+        match = false;
+
+        break;
+      }
+    }
+
+    if (match) {
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// -------- UNLOCK DOOR --------
+void unlockDoor() {
+
+  Serial.println("Access Granted");
+  Serial.println("Door Unlocked");
+
+  successBeep();
+
+  digitalWrite(RELAY_PIN, LOW);
+
+  delay(UNLOCK_TIME);
+
+  digitalWrite(RELAY_PIN, HIGH);
+
+  Serial.println("Door Locked");
+}
+
+// -------- ACCESS DENIED --------
+void accessDenied() {
+
+  Serial.println("Access Denied");
+
+  deniedBeep();
+}
+
+// -------- SUCCESS BEEP --------
+void successBeep() {
+
+  digitalWrite(BUZZER_PIN, HIGH);
+
+  delay(200);
+
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+// -------- DENIED BEEP --------
+void deniedBeep() {
+
+  for (int i = 0; i < 3; i++) {
+
+    digitalWrite(BUZZER_PIN, HIGH);
+
+    delay(150);
+
+    digitalWrite(BUZZER_PIN, LOW);
+
+    delay(150);
+  }
+}
+```
 
